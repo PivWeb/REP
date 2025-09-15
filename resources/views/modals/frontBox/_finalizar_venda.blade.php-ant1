@@ -1,0 +1,348 @@
+@php
+    // Fallback seguro caso $venda não seja passado
+    $totalVenda = isset($venda) ? $venda->total : 0;
+@endphp
+
+<!-- Modal Finalizar Venda -->
+<div class="modal fade" id="modal-finalizar_venda" aria-modal="true" role="dialog" style="overflow:scroll;" tabindex="-1">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Finalizar Venda</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body row">
+
+                @if(isset($usuario) && $usuario->somente_fiscal == 1)
+                    <div class="col-lg-6 col-12 mb-2">
+                        <button class="btn btn-success w-100" type="button" id="btn_fiscal">
+                            <i class="bx bx-file"></i> CUPOM FISCAL
+                            @if(isset($config) && $config->arquivo == null)
+                                <br><h6 class="text-danger">Sem certificado</h6>
+                            @endif
+                            @if(isset($atalhos) && $atalhos->finalizar_fiscal != '')
+                                <br><h6 class="text-white">{{ $atalhos->finalizar_fiscal }}</h6>
+                            @endif
+                        </button>
+                    </div>
+                @endif
+
+                <div class="col-lg-6 col-12 mb-2">
+                    <button type="button" class="btn btn-info w-100" id="btn_nao_fiscal"
+                        @if(!isset($atalhos) || $atalhos->finalizar_nao_fiscal == '') disabled @endif>
+                        <i class="bx bx-file-blank"></i> Contingência
+                        @if(isset($atalhos) && $atalhos->finalizar_nao_fiscal != '')
+                            <br><b class="text-white">{{ $atalhos->finalizar_nao_fiscal }}</b>
+                        @endif
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@php
+    $totalVenda = isset($venda) ? (float)$venda->total : 0;
+@endphp
+
+<!-- Modal -->
+<div class="modal fade" id="modal-pagamento" tabindex="-1" aria-labelledby="modalPagamentoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="form-pagamento" class="p-0 m-0">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalPagamentoLabel">Recebimento de Pagamento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3 d-flex justify-content-between">
+            <div><strong>Valor total: R$ <span id="total_venda">{{ number_format($totalVenda, 2, '.', '') }}</span></strong></div>
+            <div>Pago: R$ <span id="total_pago">0.00</span></div>
+          </div>
+
+          <div id="pagamentos_container" class="mb-2">
+            <!-- primeiro item -->
+            <div class="row g-2 align-items-end pagamento_item">
+              <div class="col-md-5">
+                <label class="form-label small">Forma</label>
+                <select class="form-select tipo_pagamento" name="tipo_pagamento[]">
+                  <option value="dinheiro">Dinheiro</option>
+                  <option value="debito">Cartão Débito</option>
+                  <option value="credito">Cartão Crédito</option>
+                  <option value="pix">PIX</option>
+                  <option value="boleto">Boleto</option>
+                </select>
+              </div>
+
+              <div class="col-md-5">
+                <label class="form-label small">Valor</label>
+                <input type="number" class="form-control valor_pagamento" name="valor_pagamento[]" step="0.01"
+                       value="{{ number_format($totalVenda, 2, '.', '') }}">
+              </div>
+
+              <div class="col-md-2 d-grid gap-1">
+                <button type="button" class="btn btn-outline-primary btn-add">+</button>
+                <button type="button" class="btn btn-outline-danger btn-remove d-none">&times;</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-danger" id="erro_pagamento" style="display:none;"></div>
+        </div>
+
+        <div class="modal-footer">
+          <div class="me-auto" id="troco_texto" style="display:none;">Troco: R$ <span id="troco_valor">0.00</span></div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" id="btn-confirmar-pagamento">Confirmar Pagamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- template para clonar -->
+<template id="pagamento-template">
+  <div class="row g-2 align-items-end pagamento_item">
+    <div class="col-md-5">
+      <label class="form-label small">Forma</label>
+      <select class="form-select tipo_pagamento" name="tipo_pagamento[]">
+        <option value="dinheiro">Dinheiro</option>
+        <option value="debito">Cartão Débito</option>
+        <option value="credito">Cartão Crédito</option>
+        <option value="pix">PIX</option>
+        <option value="boleto">Boleto</option>
+      </select>
+    </div>
+
+    <div class="col-md-5">
+      <label class="form-label small">Valor</label>
+      <input type="number" class="form-control valor_pagamento" name="valor_pagamento[]" step="0.01" value="">
+    </div>
+
+    <div class="col-md-2 d-grid gap-1">
+      <button type="button" class="btn btn-outline-primary btn-add">+</button>
+      <button type="button" class="btn btn-outline-danger btn-remove">&times;</button>
+    </div>
+  </div>
+</template>
+
+<!-- CSS local para "reset" (evita sobrescrituras globais estranhas) -->
+<style>
+  /* força selects/inputs dentro do modal a ter o comportamento esperado */
+  #modal-pagamento .form-select,
+  #modal-pagamento .form-control {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  /* label menor e compacto */
+  #modal-pagamento .form-label.small { font-size: .85rem; margin-bottom: .25rem; }
+</style>
+
+<script>
+  (function(){
+    const totalVenda = Number(@json((float)$totalVenda)) || 0;
+    const container = document.getElementById('pagamentos_container');
+    const template = document.getElementById('pagamento-template').content;
+    const totalPagoEl = document.getElementById('total_pago');
+    const trocoText = document.getElementById('troco_texto');
+    const trocoValor = document.getElementById('troco_valor');
+    const erroBox = document.getElementById('erro_pagamento');
+
+    function format2(n){ return Number(n).toFixed(2); }
+
+    function sumPagamentos(){
+      const vals = Array.from(container.querySelectorAll('.valor_pagamento')).map(i => parseFloat(i.value) || 0);
+      return vals.reduce((a,b)=>a+b,0);
+    }
+
+    function atualizarInterface(){
+      const soma = Math.round(sumPagamentos()*100)/100;
+      totalPagoEl.innerText = format2(soma);
+      const troco = Math.round((soma - totalVenda)*100)/100;
+      if(troco > 0){
+        trocoText.style.display = 'block';
+        trocoValor.innerText = format2(troco);
+      } else {
+        trocoText.style.display = 'none';
+        trocoValor.innerText = '0.00';
+      }
+    }
+
+    // adicionar evento delegação: add/remove
+    container.addEventListener('click', function(e){
+      if(e.target.classList.contains('btn-add')){
+        // calcula restante
+        const totalPagoAtual = sumPagamentos();
+        const restante = Math.max(totalVenda - totalPagoAtual, 0).toFixed(2);
+
+        const clone = document.importNode(template, true);
+        clone.querySelector('.valor_pagamento').value = restante;
+        // esconder botão remove apenas se for o primeiro
+        container.appendChild(clone);
+
+        // mostrar botões remove se tiver mais de 1
+        toggleRemoveButtons();
+        atualizarInterface();
+        return;
+      }
+
+      if(e.target.classList.contains('btn-remove')){
+        const item = e.target.closest('.pagamento_item');
+        if(item) item.remove();
+        toggleRemoveButtons();
+        atualizarInterface();
+        return;
+      }
+    });
+
+    // delegação input para atualizar soma
+    container.addEventListener('input', function(e){
+      if(e.target.classList.contains('valor_pagamento')){
+        atualizarInterface();
+      }
+    });
+
+    function toggleRemoveButtons(){
+      const itens = container.querySelectorAll('.pagamento_item');
+      if(itens.length <= 1){
+        itens.forEach(it => it.querySelectorAll('.btn-remove').forEach(b => b.classList.add('d-none')));
+      } else {
+        itens.forEach(it => it.querySelectorAll('.btn-remove').forEach(b => b.classList.remove('d-none')));
+      }
+    }
+
+    // inicializa
+    toggleRemoveButtons();
+    atualizarInterface();
+
+    // confirmar pagamento (mantive a sua lógica original de envio)
+    document.getElementById('btn-confirmar-pagamento').addEventListener('click', function(){
+      const valores = Array.from(document.querySelectorAll(".valor_pagamento")).map(i=>parseFloat(i.value)||0);
+      const tipos = Array.from(document.querySelectorAll(".tipo_pagamento")).map(i=>i.value);
+      const soma = valores.reduce((a,b)=>a+b,0);
+
+      if(soma + 0.001 < totalVenda){
+        erroBox.style.display = 'block';
+        erroBox.innerText = 'O total pago ainda não atinge o valor da venda!';
+        return;
+      } else {
+        erroBox.style.display = 'none';
+      }
+
+      const payload = { pagamentos: tipos.map((t,i)=>({tipo:t, valor: valores[i]})), total: totalVenda };
+
+      fetch('/api/efi/pagamento', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(data => {
+        if(data.success){
+          const modalEl = document.getElementById('modal-pagamento');
+          const modal = bootstrap.Modal.getInstance(modalEl);
+          if(modal) modal.hide();
+          const modalCpf = new bootstrap.Modal(document.getElementById('modal-cpf_nota'));
+          modalCpf && modalCpf.show();
+        } else {
+          erroBox.style.display = 'block';
+          erroBox.innerText = 'Erro: ' + (data.message || 'Resposta inesperada');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        erroBox.style.display = 'block';
+        erroBox.innerText = 'Erro na comunicação com a API Efi!';
+      });
+    });
+
+  })();
+</script>
+
+
+<!-- Modal CPF/Nota -->
+@include('modals.frontBox._cpf_nota', ['not_submit' => true])
+
+<!-- Scripts -->
+<script>
+    const totalVenda = parseFloat("{{ $totalVenda }}");
+
+    // Abrir modal de pagamento
+    const btnFinalizarVenda = document.getElementById("btn_finalizar_venda");
+    if(btnFinalizarVenda){
+        btnFinalizarVenda.addEventListener("click", function() {
+            const modalPagamento = new bootstrap.Modal(document.getElementById("modal-pagamento"));
+            modalPagamento.show();
+        });
+    }
+
+    // Confirmar pagamento
+    const btnConfirmarPagamento = document.getElementById("btn-confirmar-pagamento");
+    if(btnConfirmarPagamento){
+        btnConfirmarPagamento.addEventListener("click", function() {
+            const dinheiro = parseFloat(document.getElementById("valor_dinheiro").value) || 0;
+            const cartao = parseFloat(document.getElementById("valor_cartao").value) || 0;
+            const pix = parseFloat(document.getElementById("valor_pix").value) || 0;
+
+            const somaPagamentos = dinheiro + cartao + pix;
+
+            if(somaPagamentos < totalVenda){
+                const erro = document.getElementById("erro_pagamento");
+                erro.style.display = "block";
+                erro.innerText = "O valor total dos pagamentos deve ser igual ou maior que R$ " + totalVenda.toFixed(2);
+                return;
+            } else {
+                document.getElementById("erro_pagamento").style.display = "none";
+            }
+
+            const payload = {
+                pagamentos: { dinheiro, cartao, pix },
+                total: totalVenda
+            };
+
+            fetch('/api/efi/pagamento', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success){
+                    const modalPagamentoEl = document.getElementById("modal-pagamento");
+                    const modalPagamento = bootstrap.Modal.getInstance(modalPagamentoEl);
+                    if(modalPagamento) modalPagamento.hide();
+
+                    const modalCpfNota = new bootstrap.Modal(document.getElementById("modal-cpf_nota"));
+                    modalCpfNota.show();
+                } else {
+                    const erro = document.getElementById("erro_pagamento");
+                    erro.style.display = "block";
+                    erro.innerText = "Erro: " + data.message;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                const erro = document.getElementById("erro_pagamento");
+                erro.style.display = "block";
+                erro.innerText = "Erro na comunicação com a API Efi!";
+            });
+        });
+    }
+
+    // Botão de contingência (não fiscal)
+    const btnNaoFiscal = document.getElementById("btn_nao_fiscal");
+    if(btnNaoFiscal){
+        btnNaoFiscal.addEventListener("click", function() {
+            alert("Venda finalizada em contingência!");
+        });
+    }
+</script>

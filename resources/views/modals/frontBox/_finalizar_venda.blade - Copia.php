@@ -23,7 +23,7 @@
                 <div class="col-lg-6 col-12">
                     <button type="submit" class="btn btn-info" id="btn_nao_fiscal"
                     style="height: 50px; width: 100%">
-                    <i class="bx bx-file-blank"> </i> CUPOM NÃO FISCAL(Não Usar)
+                    <i class="bx bx-file-blank"> </i> CONTIGENCIA(MANUTENÇÃO)
                     @if ($atalhos != null && $atalhos->finalizar_nao_fiscal != '')
                     <br>
                     <b class="text-white">{{ $atalhos->finalizar_fiscal }}</b>@endif</button>

@@ -4,7 +4,8 @@
 
 @if(isset($itens))
 <input type="hidden" id="itens_pedido" value="{{json_encode($itens)}}">
-<input type="hidden" id="valor_total" @if(isset($valor_total)) value="{{$valor_total}}" @else value='0' @endif>
+
+<input type="hidden" id="valor_total" @if(isset($valor_total)) value="{{$valor_total}}" @else value='999990' @endif>
 <input type="hidden" id="delivery_id" @if(isset($delivery_id)) value="{{$delivery_id}}" @else value='0' @endif>
 <input type="hidden" id="bairro" @if(isset($bairro)) value="{{$bairro}}" @else value='0' @endif>
 <input type="hidden" id="codigo_comanda_hidden" @if(isset($cod_comanda)) value="{{$cod_comanda}}" @else value='0' @endif name="">
@@ -177,6 +178,8 @@
                             </tr>
                             @endforeach
                             @endif
+
+                            
                         </tbody>
                     </table>
                     <hr>
@@ -230,10 +233,13 @@
                 </div>
                 <hr>
                 <div class="card m-2" style="background-color: rgb(217, 223, 209)">
-                    <h6 class="m-3">TOTAL</h6>
+                    <h6 class="m-3">TOTAL COMPRA</h6>
                     <div class="row">
                         <p class="col-2 m-3">R$:</p>
                         <h1 class="col-6 m-1">
+                            
+
+
                             @isset($item)
                             <strong class="total-venda" style="margin-left:-40px">{{ __moeda($item->valor_total) }}</strong>
                             @else
@@ -277,6 +283,8 @@
 
                         
                         <div class="col-md-12">
+                            
+                            
                             <button style="width: 96%; margin-top: 135px;" type="button" id="salvar_venda" disabled class="btn btn-success px-5" data-bs-toggle="modal" data-bs-target="#modal-finalizar_venda">
                                 Finalizar Venda
                             </button>
@@ -293,5 +301,142 @@
 @include('modals.frontBox._observacoes_pdv', ['not_submit' => true])
 @include('modals.frontBox._selecionar_vendedor', ['not_submit' => true])
 @include('modals.frontBox._pag_multi_pdv', ['not_submit' => true])
-@include('modals.frontBox._finalizar_venda')
+{{--@include('modals.frontBox._finalizar_venda')--}}
+{{--@include('modals.frontBox._finalizar_venda', ['totalVenda' => isset($item) ? $item->valor_total : 0])--}}
+@include('modals.frontBox._finalizar_venda', [
+    'totalVenda' => '0'  
+])
+
+
+
+
 @include('modals.frontBox._dados_cartao')
+
+<script>
+    $(document).ready(function() {
+        $('#btn-confirmar-pagamento').on('click', function() {
+            //$('#modal-pagamento').modal('hide');
+            $('#modal-finalizar_venda').modal('show');
+        });
+    });
+
+    (function(){
+    // Pega o valor total direto do input escondido
+    const totalVendaInput = document.getElementById('valor_total');
+    const totalVenda = totalVendaInput ? parseFloat(totalVendaInput.value) : 0;
+
+    const container = document.getElementById('pagamentos_container');
+    const template = document.getElementById('pagamento-template').content;
+    const totalPagoEl = document.getElementById('total_pago');
+    const trocoText = document.getElementById('troco_texto');
+    const trocoValor = document.getElementById('troco_valor');
+    const erroBox = document.getElementById('erro_pagamento');
+
+    function format2(n){ return Number(n).toFixed(2); }
+
+    function sumPagamentos(){
+      return Array.from(container.querySelectorAll('.valor_pagamento'))
+                  .reduce((acc, el) => acc + parseFloat(el.value || 0), 0);
+    }
+
+    function atualizarInterface(){
+      const soma = Math.round(sumPagamentos()*100)/100;
+      totalPagoEl.innerText = format2(soma);
+      const troco = Math.round((soma - totalVenda)*100)/100;
+      if(troco > 0){
+        trocoText.style.display = 'block';
+        trocoValor.innerText = format2(troco);
+      } else {
+        trocoText.style.display = 'none';
+        trocoValor.innerText = '0.00';
+      }
+    }
+
+    function toggleRemoveButtons(){
+      const itens = container.querySelectorAll('.pagamento_item');
+      itens.forEach(it => it.querySelector('.btn-remove')
+                        .classList.toggle('d-none', itens.length <= 1));
+    }
+
+    // Preencher o modal quando abrir
+    const modalEl = document.getElementById('modal-pagamento');
+    modalEl.addEventListener('show.bs.modal', function () {
+        const firstInput = container.querySelector('.pagamento_item .valor_pagamento');
+        if(firstInput) firstInput.value = format2(totalVenda);
+        document.getElementById('total_venda').innerText = format2(totalVenda);
+        toggleRemoveButtons();
+        atualizarInterface();
+    });
+
+    container.addEventListener('click', function(e){
+      if(e.target.classList.contains('btn-add')){
+        const totalPagoAtual = sumPagamentos();
+        const restante = Math.max(totalVenda - totalPagoAtual, 0).toFixed(2);
+
+        const clone = document.importNode(template, true);
+        clone.querySelector('.valor_pagamento').value = restante;
+        container.appendChild(clone);
+
+        toggleRemoveButtons();
+        atualizarInterface();
+      }
+
+      if(e.target.classList.contains('btn-remove')){
+        e.target.closest('.pagamento_item').remove();
+        toggleRemoveButtons();
+        atualizarInterface();
+      }
+    });
+
+    container.addEventListener('input', function(e){
+      if(e.target.classList.contains('valor_pagamento')){
+        atualizarInterface();
+      }
+    });
+
+    document.getElementById('btn-confirmar-pagamento').addEventListener('click', function(){
+      const valores = Array.from(document.querySelectorAll(".valor_pagamento")).map(i=>parseFloat(i.value)||0);
+      const tipos = Array.from(document.querySelectorAll(".tipo_pagamento")).map(i=>i.value);
+      const soma = valores.reduce((a,b)=>a+b,0);
+
+      if(soma + 0.001 < totalVenda){
+        erroBox.style.display = 'block';
+        erroBox.innerText = 'O total pago ainda não atinge o valor da venda!';
+        return;
+      } else {
+        erroBox.style.display = 'none';
+      }
+
+      const payload = { pagamentos: tipos.map((t,i)=>({tipo:t, valor: valores[i]})), total: totalVenda };
+
+      fetch('/api/efi/pagamento', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(data => {
+        if(data.success){
+          bootstrap.Modal.getInstance(modalEl)?.hide();
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cpf_nota')).show();
+        } else {
+          erroBox.style.display = 'block';
+          erroBox.innerText = 'Erro: ' + (data.message || 'Resposta inesperada');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        erroBox.style.display = 'block';
+        erroBox.innerText = 'Erro na comunicação com a API Efi!';
+      });
+    });
+})();
+
+</script>
+
+
+
+<!-- Modal de Pagamento -->

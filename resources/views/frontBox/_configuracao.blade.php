@@ -54,6 +54,18 @@
     <div class="col-md-4 mt-2">
         {!! Form::text('mercadopago_public_key', 'Mercado Pago Public Key')->attrs(['class' => '']) !!}
     </div>
+<div class="col-md-4 mt-2">
+    {!! Form::text('efi_client_id', 'Efi Bank Client ID')->attrs(['class' => '']) !!}
+</div>
+<div class="col-md-4 mt-2">
+    {!! Form::text('efi_client_secret', 'Efi Bank Client Secret')->attrs(['class' => '']) !!}
+</div>
+<div class="col-md-4 mt-2">
+    {!! Form::text('efi_cert_path', 'Efi Bank Certificado (Caminho)')->attrs(['class' => '']) !!}
+</div>
+<div class="col-md-4 mt-2">
+    {!! Form::text('efi_pix_key', 'Efi Bank Chave Pix')->attrs(['class' => '']) !!}
+</div>
     <div class="col-md-4 mt-2">
         {!! Form::text('mercadopago_access_token', 'Mercado Pago Access Token')->attrs(['class' => '']) !!}
     </div>
